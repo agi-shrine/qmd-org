@@ -46,6 +46,11 @@ describe("detectLanguage", () => {
     expect(detectLanguage("src/auth.rs")).toBe("rust");
   });
 
+  test("recognizes Org extension", () => {
+    expect(detectLanguage("notes/project.org")).toBe("org");
+    expect(detectLanguage("notes/project.ORG")).toBe("org");
+  });
+
   test("returns null for markdown", () => {
     expect(detectLanguage("docs/README.md")).toBeNull();
   });

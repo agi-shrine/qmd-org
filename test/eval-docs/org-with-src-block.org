@@ -1,0 +1,65 @@
+#+TITLE: Source Block Integrity
+
+* Introduction
+
+This fixture verifies that the chunker never splits across a
+#+BEGIN_SRC ... #+END_SRC block, no matter how small the target chunk
+size is relative to the block's byte count.
+
+:PROPERTIES:
+:ID:       src-block-integrity
+:CREATED:  2026-04-21
+:END:
+
+A short paragraph before the block, so the chunker has to make a real
+cut-point decision.
+
+* The Block
+
+Here comes the block. Everything between the BEGIN and END markers is
+load-bearing and must stay in a single chunk.
+
+#+BEGIN_SRC bash
+# A reasonably long shell script, padded out so it definitely exceeds
+# whatever tiny chunk size the tests pick.
+set -euo pipefail
+
+main() {
+  local input_dir="$1"
+  local output_dir="$2"
+
+  if [[ ! -d "$input_dir" ]]; then
+    echo "Input directory does not exist: $input_dir" >&2
+    return 1
+  fi
+
+  mkdir -p "$output_dir"
+
+  find "$input_dir" -type f -name '*.org' -print0 |
+    while IFS= read -r -d '' file; do
+      local name
+      name="$(basename "$file" .org)"
+      echo "Processing $name..."
+      cp "$file" "$output_dir/$name.processed.org"
+    done
+
+  echo "Done."
+}
+
+main "$@"
+#+END_SRC
+
+* After
+
+A closing paragraph so chunks past the block also have content to
+anchor on.
+
+#+BEGIN_EXAMPLE
+Example blocks get the same protection as source blocks.
+Multi-line example content here.
+Line three of the example.
+#+END_EXAMPLE
+
+Final paragraph with enough text that a naive chunker targeting ~400
+characters would absolutely love to cut somewhere. It must not cut
+inside either block above.

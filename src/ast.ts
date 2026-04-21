@@ -19,7 +19,9 @@
  */
 
 import { createRequire } from "node:module";
-import { extname } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, extname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { BreakPoint } from "./store.js";
 
 // web-tree-sitter types — imported dynamically to avoid top-level WASM init
@@ -31,7 +33,7 @@ type QueryType = import("web-tree-sitter").Query;
 // Language Detection
 // =============================================================================
 
-export type SupportedLanguage = "typescript" | "tsx" | "javascript" | "python" | "go" | "rust";
+export type SupportedLanguage = "typescript" | "tsx" | "javascript" | "python" | "go" | "rust" | "org";
 
 const EXTENSION_MAP: Record<string, SupportedLanguage> = {
   ".ts": "typescript",
@@ -45,6 +47,7 @@ const EXTENSION_MAP: Record<string, SupportedLanguage> = {
   ".py": "python",
   ".go": "go",
   ".rs": "rust",
+  ".org": "org",
 };
 
 /**
@@ -70,6 +73,7 @@ const GRAMMAR_MAP: Record<SupportedLanguage, { pkg: string; wasm: string }> = {
   python:     { pkg: "tree-sitter-python",     wasm: "tree-sitter-python.wasm" },
   go:         { pkg: "tree-sitter-go",         wasm: "tree-sitter-go.wasm" },
   rust:       { pkg: "tree-sitter-rust",        wasm: "tree-sitter-rust.wasm" },
+  org:        { pkg: "tree-sitter-org",        wasm: "tree-sitter-org.wasm" },
 };
 
 // =============================================================================
@@ -141,6 +145,12 @@ const LANGUAGE_QUERIES: Record<SupportedLanguage, string> = {
     (type_item) @type
     (mod_item) @mod
   `,
+  org: `
+    (headline) @headline
+    (block) @block
+    (drawer) @drawer
+    (list) @list
+  `,
 };
 
 /**
@@ -159,9 +169,13 @@ const SCORE_MAP: Record<string, number> = {
   func:       90,
   method:     90,
   decorated:  90,
+  headline:   95,
   type:       80,
   enum:       80,
+  block:      80,
   import:     60,
+  drawer:     60,
+  list:        5,
 };
 
 // =============================================================================
@@ -200,10 +214,25 @@ async function ensureInit(): Promise<void> {
 
 /**
  * Resolve the filesystem path to a grammar .wasm file.
- * Uses createRequire to resolve from installed dependency packages.
+ *
+ * Lookup order:
+ *   1. Bundled `assets/grammars/<wasm>` (relative to the repo root),
+ *      used for grammars that aren't published as npm packages (e.g. tree-sitter-org).
+ *   2. An installed npm package `<pkg>/<wasm>`, for the standard grammars.
+ *
+ * Throws if neither is available; callers handle the failure via `failedLanguages`.
  */
 function resolveGrammarPath(language: SupportedLanguage): string {
   const { pkg, wasm } = GRAMMAR_MAP[language];
+
+  const assetCandidates = [
+    resolve(dirname(fileURLToPath(import.meta.url)), "..", "assets", "grammars", wasm),
+    resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "grammars", wasm),
+  ];
+  for (const candidate of assetCandidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+
   const require = createRequire(import.meta.url);
   return require.resolve(`${pkg}/${wasm}`);
 }

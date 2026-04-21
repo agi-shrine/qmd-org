@@ -33,6 +33,7 @@ import type {
   CollectionConfig,
   ContextMap,
 } from "./collections.js";
+import { getAdapter } from "./formats/index.js";
 
 // =============================================================================
 // Configuration
@@ -89,80 +90,33 @@ export interface CodeFenceRegion {
 }
 
 /**
- * Patterns for detecting break points in markdown documents.
- * Higher scores indicate better places to split.
- * Scores are spread wide so headings decisively beat lower-quality breaks.
- * Order matters for scoring - more specific patterns first.
+ * Scan text for all potential break points using the format adapter for the
+ * given filepath (markdown by default when filepath is absent or unknown).
+ * Returns a sorted array where higher-scoring patterns win at shared positions.
  */
-export const BREAK_PATTERNS: [RegExp, number, string][] = [
-  [/\n#{1}(?!#)/g, 100, 'h1'],     // # but not ##
-  [/\n#{2}(?!#)/g, 90, 'h2'],      // ## but not ###
-  [/\n#{3}(?!#)/g, 80, 'h3'],      // ### but not ####
-  [/\n#{4}(?!#)/g, 70, 'h4'],      // #### but not #####
-  [/\n#{5}(?!#)/g, 60, 'h5'],      // ##### but not ######
-  [/\n#{6}(?!#)/g, 50, 'h6'],      // ######
-  [/\n```/g, 80, 'codeblock'],     // code block boundary (same as h3)
-  [/\n(?:---|\*\*\*|___)\s*\n/g, 60, 'hr'],  // horizontal rule
-  [/\n\n+/g, 20, 'blank'],         // paragraph boundary
-  [/\n[-*]\s/g, 5, 'list'],        // unordered list item
-  [/\n\d+\.\s/g, 5, 'numlist'],    // ordered list item
-  [/\n/g, 1, 'newline'],           // minimal break
-];
+export function scanBreakPoints(text: string, filepath?: string): BreakPoint[] {
+  const adapter = getAdapter(filepath);
+  const seen = new Map<number, BreakPoint>();
 
-/**
- * Scan text for all potential break points.
- * Returns sorted array of break points with higher-scoring patterns taking precedence
- * when multiple patterns match the same position.
- */
-export function scanBreakPoints(text: string): BreakPoint[] {
-  const points: BreakPoint[] = [];
-  const seen = new Map<number, BreakPoint>();  // pos -> best break point at that pos
-
-  for (const [pattern, score, type] of BREAK_PATTERNS) {
+  for (const [pattern, score, type] of adapter.breakPatterns) {
     for (const match of text.matchAll(pattern)) {
       const pos = match.index!;
       const existing = seen.get(pos);
-      // Keep higher score if position already seen
       if (!existing || score > existing.score) {
-        const bp = { pos, score, type };
-        seen.set(pos, bp);
+        seen.set(pos, { pos, score, type });
       }
     }
   }
 
-  // Convert to array and sort by position
-  for (const bp of seen.values()) {
-    points.push(bp);
-  }
-  return points.sort((a, b) => a.pos - b.pos);
+  return Array.from(seen.values()).sort((a, b) => a.pos - b.pos);
 }
 
 /**
- * Find all code fence regions in the text.
- * Code fences are delimited by ``` and we should never split inside them.
+ * Find all code fence regions in the text using the format adapter for the
+ * given filepath. Chunks must never split inside these regions.
  */
-export function findCodeFences(text: string): CodeFenceRegion[] {
-  const regions: CodeFenceRegion[] = [];
-  const fencePattern = /\n```/g;
-  let inFence = false;
-  let fenceStart = 0;
-
-  for (const match of text.matchAll(fencePattern)) {
-    if (!inFence) {
-      fenceStart = match.index!;
-      inFence = true;
-    } else {
-      regions.push({ start: fenceStart, end: match.index! + match[0].length });
-      inFence = false;
-    }
-  }
-
-  // Handle unclosed fence - extends to end of document
-  if (inFence) {
-    regions.push({ start: fenceStart, end: text.length });
-  }
-
-  return regions;
+export function findCodeFences(text: string, filepath?: string): CodeFenceRegion[] {
+  return getAdapter(filepath).findCodeFences(text);
 }
 
 /**
@@ -2032,35 +1986,9 @@ export async function hashContent(content: string): Promise<string> {
   return hash.digest("hex");
 }
 
-const titleExtractors: Record<string, (content: string) => string | null> = {
-  '.md': (content) => {
-    const match = content.match(/^##?\s+(.+)$/m);
-    if (match) {
-      const title = (match[1] ?? "").trim();
-      if (title === "📝 Notes" || title === "Notes") {
-        const nextMatch = content.match(/^##\s+(.+)$/m);
-        if (nextMatch?.[1]) return nextMatch[1].trim();
-      }
-      return title;
-    }
-    return null;
-  },
-  '.org': (content) => {
-    const titleProp = content.match(/^#\+TITLE:\s*(.+)$/im);
-    if (titleProp?.[1]) return titleProp[1].trim();
-    const heading = content.match(/^\*+\s+(.+)$/m);
-    if (heading?.[1]) return heading[1].trim();
-    return null;
-  },
-};
-
 export function extractTitle(content: string, filename: string): string {
-  const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
-  const extractor = titleExtractors[ext];
-  if (extractor) {
-    const title = extractor(content);
-    if (title) return title;
-  }
+  const title = getAdapter(filename).extractTitle(content);
+  if (title) return title;
   return filename.replace(/\.[^.]+$/, "").split("/").pop() || filename;
 }
 
@@ -2216,16 +2144,18 @@ export { formatQueryForEmbedding, formatDocForEmbedding };
 
 /**
  * Chunk a document using regex-only break point detection.
- * This is the sync, backward-compatible API used by tests and legacy callers.
+ * This is the sync API used by tests and token-budget recursive splits.
+ * The optional `filepath` selects the format adapter (defaults to markdown).
  */
 export function chunkDocument(
   content: string,
   maxChars: number = CHUNK_SIZE_CHARS,
   overlapChars: number = CHUNK_OVERLAP_CHARS,
-  windowChars: number = CHUNK_WINDOW_CHARS
+  windowChars: number = CHUNK_WINDOW_CHARS,
+  filepath?: string,
 ): { text: string; pos: number }[] {
-  const breakPoints = scanBreakPoints(content);
-  const codeFences = findCodeFences(content);
+  const breakPoints = scanBreakPoints(content, filepath);
+  const codeFences = findCodeFences(content, filepath);
   return chunkDocumentWithBreakPoints(content, breakPoints, codeFences, maxChars, overlapChars, windowChars);
 }
 
@@ -2245,8 +2175,8 @@ export async function chunkDocumentAsync(
   filepath?: string,
   chunkStrategy: ChunkStrategy = "regex",
 ): Promise<{ text: string; pos: number }[]> {
-  const regexPoints = scanBreakPoints(content);
-  const codeFences = findCodeFences(content);
+  const regexPoints = scanBreakPoints(content, filepath);
+  const codeFences = findCodeFences(content, filepath);
 
   let breakPoints = regexPoints;
   if (chunkStrategy === "auto" && filepath) {
@@ -2317,7 +2247,7 @@ export async function chunkDocumentByTokens(
       safeMaxChars,
     );
     let nextWindowChars = Math.max(0, Math.floor(windowChars * actualCharsPerToken / 2));
-    let subChunks = chunkDocument(text, safeMaxChars, nextOverlapChars, nextWindowChars);
+    let subChunks = chunkDocument(text, safeMaxChars, nextOverlapChars, nextWindowChars, filepath);
 
     // Pathological single-line blobs can produce no meaningful breakpoint progress.
     // Fall back to a simple half split so every recursion step strictly shrinks.
@@ -2328,7 +2258,7 @@ export async function chunkDocumentByTokens(
       safeMaxChars = Math.max(1, Math.floor(text.length / 2));
       nextOverlapChars = 0;
       nextWindowChars = 0;
-      subChunks = chunkDocument(text, safeMaxChars, nextOverlapChars, nextWindowChars);
+      subChunks = chunkDocument(text, safeMaxChars, nextOverlapChars, nextWindowChars, filepath);
     }
 
     if (

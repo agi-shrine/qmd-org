@@ -1,0 +1,49 @@
+#+TITLE: Nested Headings Demo
+#+AUTHOR: QMD Fork
+
+* Project Overview
+
+This document exercises nested org-mode headings for chunk boundary tests.
+Paragraphs should give way to heading breaks when possible.
+
+** Motivation
+
+The project exists because chunking markdown patterns against org content
+produces noisy boundaries. We capture a few nested levels here so the
+test suite can verify that ~*~, ~**~, and ~***~ each score correctly.
+
+*** Background
+
+Some background paragraph so the second-level heading actually has
+content beneath it.
+
+** Goals
+
+- Preserve outline hierarchy in chunk boundaries.
+- Keep source blocks intact.
+- Treat drawers as soft breaks.
+
+*** Non-Goals
+
+We are not rewriting the FTS tokenizer in this pass.
+
+* Implementation Notes
+
+The implementation hangs a FormatAdapter off every known extension.
+
+** Adapter Shape
+
+Each adapter exposes break patterns, a code-fence scanner, and a title
+extractor. Defaults fall back to markdown, keeping existing collections
+working with zero configuration changes.
+
+* Closing
+
+That is plenty of outline for a fixture. Longer paragraphs below ensure
+the document exceeds a small maxChars budget, forcing the chunker to
+actually choose cut points rather than returning the whole file as one
+chunk.
+
+Another paragraph to pad the byte count. The important thing is that
+when the chunker looks for a good break, it should lock onto one of the
+~*~-prefixed headings over any paragraph or newline candidate.

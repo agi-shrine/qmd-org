@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Changes
+
+- Org-mode (`.org`) files now chunk with org-aware break points. A new
+  `FormatAdapter` interface (`src/formats/`) per extension owns the
+  break-pattern table, code-fence scanner, and title extractor. Markdown
+  remains the default when the extension is unknown. Org headings score
+  by depth (`*`=100 through `******`=50), and `#+BEGIN_SRC`/`#+END_SRC`
+  and `#+BEGIN_EXAMPLE`/`#+END_EXAMPLE` blocks are protected from mid-chunk
+  splits. `src/ast.ts` has an org language entry wired in so a bundled
+  `tree-sitter-org.wasm` (under `assets/grammars/`) automatically
+  upgrades chunking to AST-aware when present; regex patterns carry the
+  feature today.
+
 ### Fixes
 
 - GPU: respect explicit `QMD_LLAMA_GPU=metal|vulkan|cuda` backend overrides instead of always using auto GPU selection. #529

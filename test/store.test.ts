@@ -407,6 +407,16 @@ describe("Document Helpers", () => {
     const content = "# 📝 Notes\n\n## Meeting Summary\n\nContent";
     expect(extractTitle(content, "file.md")).toBe("Meeting Summary");
   });
+
+  test("extractTitle reads org #+TITLE property", () => {
+    const content = "#+TITLE: Org Doc\n\n* Heading";
+    expect(extractTitle(content, "notes.org")).toBe("Org Doc");
+  });
+
+  test("extractTitle falls back to first * heading for org", () => {
+    const content = "* First Heading\nSome body";
+    expect(extractTitle(content, "notes.org")).toBe("First Heading");
+  });
 });
 
 // =============================================================================
