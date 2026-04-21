@@ -1,5 +1,5 @@
 {
-  description = "QMD - Quick Markdown Search";
+  description = "QMD-Org - Quick Markdown Search (org-aware fork)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -11,17 +11,17 @@
       homeModules.default = { config, lib, pkgs, ... }:
         with lib;
         let
-          cfg = config.programs.qmd;
+          cfg = config.programs.qmd-org;
         in
         {
-          options.programs.qmd = {
-            enable = mkEnableOption "QMD - on-device search engine for markdown notes";
+          options.programs.qmd-org = {
+            enable = mkEnableOption "QMD-Org - on-device semantic search for .org notes (fork of qmd)";
 
             package = mkOption {
               type = types.package;
               default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
-              defaultText = literalExpression "inputs.qmd.packages.\${pkgs.stdenv.hostPlatform.system}.default";
-              description = "The qmd package to use.";
+              defaultText = literalExpression "inputs.qmd-org.packages.\${pkgs.stdenv.hostPlatform.system}.default";
+              description = "The qmd-org package to use.";
             };
           };
 
@@ -53,7 +53,7 @@
         };
 
         nodeModules = pkgs.stdenvNoCC.mkDerivation {
-          pname = "qmd-node-modules";
+          pname = "qmd-org-node-modules";
           inherit version;
 
           src = ./.;
@@ -93,7 +93,7 @@
         };
 
         qmd = pkgs.stdenv.mkDerivation {
-          pname = "qmd";
+          pname = "qmd-org";
           inherit version;
 
           src = ./.;
@@ -120,22 +120,23 @@
           '';
 
           installPhase = ''
-            mkdir -p $out/lib/qmd
+            mkdir -p $out/lib/qmd-org
             mkdir -p $out/bin
 
-            cp -r node_modules $out/lib/qmd/
-            cp -r src $out/lib/qmd/
-            cp package.json $out/lib/qmd/
+            cp -r node_modules $out/lib/qmd-org/
+            cp -r src $out/lib/qmd-org/
+            cp -r assets $out/lib/qmd-org/
+            cp package.json $out/lib/qmd-org/
 
-            makeWrapper ${pkgs.bun}/bin/bun $out/bin/qmd \
-              --add-flags "$out/lib/qmd/src/cli/qmd.ts" \
+            makeWrapper ${pkgs.bun}/bin/bun $out/bin/qmd-org \
+              --add-flags "$out/lib/qmd-org/src/cli/qmd.ts" \
               --set DYLD_LIBRARY_PATH "${pkgs.sqlite.out}/lib" \
               --set LD_LIBRARY_PATH "${pkgs.sqlite.out}/lib"
           '';
 
           meta = with pkgs.lib; {
-            description = "On-device search engine for markdown notes, meeting transcripts, and knowledge bases";
-            homepage = "https://github.com/tobi/qmd";
+            description = "On-device semantic search for .org notes (org-aware fork of qmd)";
+            homepage = "https://github.com/agi-shrine/qmd-org";
             license = licenses.mit;
             platforms = platforms.unix;
           };
@@ -144,12 +145,12 @@
       {
         packages = {
           default = qmd;
-          qmd = qmd;
+          qmd-org = qmd;
         };
 
         apps.default = {
           type = "app";
-          program = "${qmd}/bin/qmd";
+          program = "${qmd}/bin/qmd-org";
         };
 
         devShells.default = pkgs.mkShell {
@@ -160,7 +161,7 @@
 
           shellHook = ''
             export BREW_PREFIX="''${BREW_PREFIX:-${sqliteWithExtensions.out}}"
-            echo "QMD development shell"
+            echo "QMD-Org development shell"
             echo "Run: bun src/cli/qmd.ts <command>"
           '';
         };
