@@ -1387,7 +1387,10 @@ export async function generateEmbeddings(
   const llm = getLlm(store);
   const embedModelUri = llm.embedModelName;
 
-  // Create a session manager for this llm instance
+  // maxDuration=0 disables the 30-min session auto-abort — bulk embedding
+  // legitimately runs for hours on large corpora. This call path is invoked
+  // from the CLI / commit hook, not the long-lived MCP server, so the
+  // process lifecycle already bounds the session.
   const result = await withLLMSessionForLlm(llm, async (session) => {
     let chunksEmbedded = 0;
     let errors = 0;
@@ -1532,7 +1535,7 @@ export async function generateEmbeddings(
     }
 
     return { chunksEmbedded, errors };
-  }, { maxDuration: 30 * 60 * 1000, name: 'generateEmbeddings' });
+  }, { maxDuration: 0, name: 'generateEmbeddings' });
 
   return {
     docsProcessed: totalDocs,
