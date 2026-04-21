@@ -54,6 +54,29 @@ describe("orgAdapter", () => {
     expect(orgAdapter.extractTitle("* Heading One\nbody")).toBe("Heading One");
   });
 
+  test("strips TODO keyword when falling back to heading", () => {
+    expect(orgAdapter.extractTitle("* TODO Write tests\nbody")).toBe("Write tests");
+    expect(orgAdapter.extractTitle("** DONE Ship it\nbody")).toBe("Ship it");
+    expect(orgAdapter.extractTitle("* WAITING on review\nbody")).toBe("on review");
+  });
+
+  test("strips trailing :tags: when falling back to heading", () => {
+    expect(orgAdapter.extractTitle("* Heading :work:urgent:\nbody")).toBe("Heading");
+  });
+
+  test("strips TODO keyword and tags together", () => {
+    expect(orgAdapter.extractTitle("* TODO Build thing :home:\nbody")).toBe("Build thing");
+  });
+
+  test("strips priority cookie", () => {
+    expect(orgAdapter.extractTitle("* TODO [#A] Urgent thing\nbody")).toBe("Urgent thing");
+  });
+
+  test("prefers #+TITLE over first heading even with TODO", () => {
+    const doc = "#+TITLE: Real Title\n\n* TODO Something\n";
+    expect(orgAdapter.extractTitle(doc)).toBe("Real Title");
+  });
+
   test("findCodeFences detects #+BEGIN_SRC blocks", () => {
     const doc = "Intro\n#+BEGIN_SRC bash\necho hi\n#+END_SRC\nOutro";
     const fences = orgAdapter.findCodeFences(doc);

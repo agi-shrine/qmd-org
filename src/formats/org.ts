@@ -1,4 +1,5 @@
 import type { CodeFenceRegion, FormatAdapter } from "./types.js";
+import { extractHeadingTitle } from "./org-parser.js";
 
 const ORG_BREAK_PATTERNS: [RegExp, number, string][] = [
   [/\n\*{1}(?!\*)\s/g, 100, 'h1'],
@@ -54,8 +55,11 @@ function findOrgCodeFences(text: string): CodeFenceRegion[] {
 function extractOrgTitle(content: string): string | null {
   const titleProp = content.match(/^#\+TITLE:\s*(.+)$/im);
   if (titleProp?.[1]) return titleProp[1].trim();
-  const heading = content.match(/^\*+\s+(.+)$/m);
-  if (heading?.[1]) return heading[1].trim();
+  const heading = content.match(/^\*+\s+.+$/m);
+  if (heading?.[0]) {
+    const cleaned = extractHeadingTitle(heading[0]);
+    if (cleaned) return cleaned;
+  }
   return null;
 }
 
