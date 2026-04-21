@@ -716,7 +716,7 @@ function initializeDatabase(db: Database): void {
   `);
 
   // Documents table - file system layer mapping virtual paths to content hashes
-  // Collections are now managed in ~/.config/qmd/index.yml
+  // Collections are now managed in ~/.config/qmd-org/index.yml
   db.exec(`
     CREATE TABLE IF NOT EXISTS documents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

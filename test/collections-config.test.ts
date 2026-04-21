@@ -35,10 +35,10 @@ afterEach(() => {
 });
 
 describe("getConfigDir via getConfigPath", () => {
-  test("defaults to ~/.config/qmd when no env vars are set", () => {
+  test("defaults to ~/.config/qmd-org when no env vars are set", () => {
     delete process.env.QMD_CONFIG_DIR;
     delete process.env.XDG_CONFIG_HOME;
-    expect(getConfigPath()).toBe(join(homedir(), ".config", "qmd", "index.yml"));
+    expect(getConfigPath()).toBe(join(homedir(), ".config", "qmd-org", "index.yml"));
   });
 
   test("QMD_CONFIG_DIR takes highest priority", () => {
@@ -50,13 +50,13 @@ describe("getConfigDir via getConfigPath", () => {
   test("XDG_CONFIG_HOME is used when QMD_CONFIG_DIR is not set", () => {
     delete process.env.QMD_CONFIG_DIR;
     process.env.XDG_CONFIG_HOME = "/xdg/config";
-    expect(getConfigPath()).toBe(join("/xdg/config", "qmd", "index.yml"));
+    expect(getConfigPath()).toBe(join("/xdg/config", "qmd-org", "index.yml"));
   });
 
-  test("XDG_CONFIG_HOME appends qmd subdirectory", () => {
+  test("XDG_CONFIG_HOME appends qmd-org subdirectory", () => {
     delete process.env.QMD_CONFIG_DIR;
     process.env.XDG_CONFIG_HOME = "/home/agent/.config";
-    expect(getConfigPath()).toBe(join("/home/agent/.config", "qmd", "index.yml"));
+    expect(getConfigPath()).toBe(join("/home/agent/.config", "qmd-org", "index.yml"));
   });
 
   test("QMD_CONFIG_DIR overrides XDG_CONFIG_HOME", () => {
@@ -69,6 +69,6 @@ describe("getConfigDir via getConfigPath", () => {
     delete process.env.QMD_CONFIG_DIR;
     process.env.XDG_CONFIG_HOME = "/xdg/config";
     setConfigIndexName("myindex");
-    expect(getConfigPath()).toBe(join("/xdg/config", "qmd", "myindex.yml"));
+    expect(getConfigPath()).toBe(join("/xdg/config", "qmd-org", "myindex.yml"));
   });
 });

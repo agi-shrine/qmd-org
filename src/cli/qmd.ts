@@ -1523,7 +1523,7 @@ async function indexFiles(pwd?: string, globPattern: string = DEFAULT_GLOB, coll
 
   // Collection name must be provided (from YAML)
   if (!collectionName) {
-    throw new Error("Collection name is required. Collections must be defined in ~/.config/qmd/index.yml");
+    throw new Error("Collection name is required. Collections must be defined in ~/.config/qmd-org/index.yml");
   }
 
   console.log(`Collection: ${resolvedPwd} (${globPattern})`);
