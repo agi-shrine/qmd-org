@@ -10,10 +10,14 @@
   remains the default when the extension is unknown. Org headings score
   by depth (`*`=100 through `******`=50), and `#+BEGIN_SRC`/`#+END_SRC`
   and `#+BEGIN_EXAMPLE`/`#+END_EXAMPLE` blocks are protected from mid-chunk
-  splits. `src/ast.ts` has an org language entry wired in so a bundled
-  `tree-sitter-org.wasm` (under `assets/grammars/`) automatically
-  upgrades chunking to AST-aware when present; regex patterns carry the
-  feature today.
+  splits.
+- AST-aware chunking now covers `.org` files too. A prebuilt
+  `tree-sitter-org.wasm` ships in `assets/grammars/`. The AST query
+  captures `headline` (95), `block`/`dynamic_block` (80), `table` (70),
+  `drawer`/`property_drawer` (60), and `list` (5) — so org-roam property
+  drawers, dynamic blocks, and tables now contribute structural break
+  points in addition to the regex patterns. Enable with
+  `--chunk-strategy auto`.
 
 ### Fixes
 

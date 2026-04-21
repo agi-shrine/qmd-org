@@ -150,11 +150,15 @@ Known caveats, none adapter-originated:
 1. **Prune or mask `tg-inboxes/`** and `private/dailies/wm.org`. These
    raw/aggregated files are the primary source of ranking noise in top-5
    semantic results. Tracked in the Weave Action Pool.
-2. **Upstream `{ maxDuration: 0 }` for bulk embed** in
-   `src/store.ts:1391`. Eliminates the slow iterative convergence on
-   large corpora. One-line change; out of scope for the org PR itself.
-3. **Build `tree-sitter-org.wasm`** — deferred. Regex path is sufficient
-   for current quality. AST would add structural signals for drawers and
-   lists but isn't required.
+2. ~~**Upstream `{ maxDuration: 0 }` for bulk embed**~~ — done in
+   `1a15a8e embed: disable session auto-abort for bulk runs`.
+3. ~~**Build `tree-sitter-org.wasm`**~~ — done. Prebuilt wasm committed
+   to `assets/grammars/`. AST query extended with `property_drawer` (org-
+   roam drawers), `table`, and `dynamic_block` captures. Sample run over
+   10 real-vault files: identical chunk counts vs regex-only, cut
+   positions shift 1–281 bytes on 4/10 files (mostly 1-byte alignment
+   shifts; one outlier still produced a forced mid-content cut, same as
+   the regex path — a pre-existing chunker behavior on dense-heading
+   docs, not adapter-originated).
 4. Ship the adapter — commit the Azimuth-port additions (title cleaning)
    and this report; merge is safe.

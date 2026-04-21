@@ -496,7 +496,7 @@ export function getDefaultDbPath(indexName: string = "index"): string {
   }
 
   const cacheDir = process.env.XDG_CACHE_HOME || resolve(homedir(), ".cache");
-  const qmdCacheDir = resolve(cacheDir, "qmd");
+  const qmdCacheDir = resolve(cacheDir, "qmd-org");
   try { mkdirSync(qmdCacheDir, { recursive: true }); } catch { }
   return resolve(qmdCacheDir, `${indexName}.sqlite`);
 }
@@ -1547,7 +1547,7 @@ export async function generateEmbeddings(
 
 /**
  * Create a new store instance with the given database path.
- * If no path is provided, uses the default path (~/.cache/qmd/index.sqlite).
+ * If no path is provided, uses the default path (~/.cache/qmd-org/index.sqlite).
  *
  * @param dbPath - Path to the SQLite database file
  * @returns Store instance with all methods bound to the database

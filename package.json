@@ -12,11 +12,12 @@
     }
   },
   "bin": {
-    "qmd": "bin/qmd"
+    "qmd-org": "bin/qmd-org"
   },
   "files": [
     "bin/",
     "dist/",
+    "assets/",
     "LICENSE",
     "CHANGELOG.md"
   ],

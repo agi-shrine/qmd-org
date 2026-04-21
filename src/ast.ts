@@ -148,7 +148,10 @@ const LANGUAGE_QUERIES: Record<SupportedLanguage, string> = {
   org: `
     (headline) @headline
     (block) @block
+    (dynamic_block) @block
     (drawer) @drawer
+    (property_drawer) @drawer
+    (table) @table
     (list) @list
   `,
 };
@@ -175,6 +178,7 @@ const SCORE_MAP: Record<string, number> = {
   block:      80,
   import:     60,
   drawer:     60,
+  table:      70,
   list:        5,
 };
 

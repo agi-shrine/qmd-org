@@ -293,6 +293,74 @@ fn hash_password(password: &str) -> String {
   });
 });
 
+describe("getASTBreakPoints - Org", () => {
+  const ORG_SAMPLE = `#+TITLE: Test Doc
+#+FILETAGS: :foo:bar:
+
+* TODO [#A] First heading :tag:
+  :PROPERTIES:
+  :ID:       abc-123
+  :CREATED:  2024-01-01
+  :END:
+
+Some paragraph text.
+
+#+BEGIN_SRC javascript
+console.log("hello");
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+plain example
+#+END_EXAMPLE
+
+** Nested heading
+- list item 1
+- list item 2
+
+| col1 | col2 |
+|------+------|
+| a    | b    |
+
+* Second top-level
+Another paragraph.
+`;
+
+  test("produces break points for headline, block, drawer, list, table", async () => {
+    const points = await getASTBreakPoints(ORG_SAMPLE, "notes.org");
+    const types = points.map(p => p.type);
+
+    expect(types.some(t => t === "ast:headline")).toBe(true);
+    expect(types.some(t => t === "ast:block")).toBe(true);
+    expect(types.some(t => t === "ast:drawer")).toBe(true);
+    expect(types.some(t => t === "ast:list")).toBe(true);
+    expect(types.some(t => t === "ast:table")).toBe(true);
+  });
+
+  test("property drawer is captured as drawer (via property_drawer node)", async () => {
+    const points = await getASTBreakPoints(ORG_SAMPLE, "notes.org");
+    const drawerPoints = points.filter(p => p.type === "ast:drawer");
+    expect(drawerPoints.length).toBeGreaterThanOrEqual(1);
+
+    const drawer = drawerPoints[0]!;
+    expect(ORG_SAMPLE.slice(drawer.pos, drawer.pos + 12)).toBe(":PROPERTIES:");
+  });
+
+  test("headlines score 95, blocks 80, drawers 60, tables 70, lists 5", async () => {
+    const points = await getASTBreakPoints(ORG_SAMPLE, "notes.org");
+    const headline = points.find(p => p.type === "ast:headline");
+    const block = points.find(p => p.type === "ast:block");
+    const drawer = points.find(p => p.type === "ast:drawer");
+    const table = points.find(p => p.type === "ast:table");
+    const list = points.find(p => p.type === "ast:list");
+
+    expect(headline?.score).toBe(95);
+    expect(block?.score).toBe(80);
+    expect(drawer?.score).toBe(60);
+    expect(table?.score).toBe(70);
+    expect(list?.score).toBe(5);
+  });
+});
+
 // =============================================================================
 // Error Handling & Fallback
 // =============================================================================
